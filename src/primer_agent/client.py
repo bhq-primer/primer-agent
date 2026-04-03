@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import AsyncIterator
 from typing import Any
 from uuid import UUID
 
@@ -163,19 +164,21 @@ class PEPClient:
     # Conversations (AG-UI chat)
     # -------------------------------------------------------------------------
 
-    async def send_message(
+    async def send_message_stream(
         self,
         conversation_id: str,
         message: str,
-    ) -> httpx.Response:
-        """Send a message to a conversation. Returns raw response for SSE streaming."""
+    ) -> AsyncIterator[str]:
+        """Send a message and yield raw SSE lines as they arrive."""
         import uuid
 
         client = await self._client()
         headers = await self._headers()
         headers["Content-Type"] = "application/json"
         headers["Accept"] = "text/event-stream"
-        return await client.post(
+
+        request = client.build_request(
+            "POST",
             f"{API}/conversations/{conversation_id}/chat",
             headers=headers,
             json={
@@ -193,8 +196,14 @@ class PEPClient:
                     }
                 ],
             },
-            timeout=300,
         )
+        resp = await client.send(request, stream=True)
+        resp.raise_for_status()
+        try:
+            async for line in resp.aiter_lines():
+                yield line
+        finally:
+            await resp.aclose()
 
     async def get_conversation_messages(self, conversation_id: str) -> dict:
         return await self._get(f"{API}/conversations/{conversation_id}/messages")
