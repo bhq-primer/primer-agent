@@ -150,7 +150,7 @@ class PEPClient:
     ) -> dict:
         return await self._post(
             f"{API}/dataverse/{dataverse_id}/search",
-            json=search_request,
+            json={"search_request": search_request},
         )
 
     async def get_dataverse_aggregations(self, dataverse_id: str, version: int) -> dict:

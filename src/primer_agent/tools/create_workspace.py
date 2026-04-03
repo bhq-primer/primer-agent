@@ -79,7 +79,10 @@ def register(mcp: FastMCP) -> None:
             await ctx.report_progress(2, 4, "Adding documents to workspace...")
 
         result = await pep_client.add_search_to_dataverse(dataverse_id, search_body)
-        doc_count = result.get("document_count", 0)
+        doc_count = (
+            result.get("action", {}).get("unique_documents_added")
+            or len(result.get("version", {}).get("document_ids", []))
+        )
 
         # Step 4: Done
         if ctx:
