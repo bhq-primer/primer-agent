@@ -64,7 +64,9 @@ def register(mcp: FastMCP) -> None:
 def _parse_sse_response(raw: str) -> str:
     """Extract text content from an SSE response stream.
 
-    Parses AG-UI event stream format, collecting TEXT_MESSAGE_CONTENT events.
+    Parses AG-UI event stream format. The PEP agent delivers structured
+    responses via CUSTOM "chat_with_data" events (containing the main
+    analysis) plus TEXT_MESSAGE_CONTENT for follow-up text.
     """
     parts: list[str] = []
     for line in raw.split("\n"):
@@ -79,9 +81,15 @@ def _parse_sse_response(raw: str) -> str:
             continue
 
         event_type = data.get("type", "")
-        if event_type == "TEXT_MESSAGE_CONTENT":
-            parts.append(data.get("delta", ""))
-        elif event_type == "TEXT_MESSAGE_END":
+        if event_type == "CUSTOM" and data.get("name") == "chat_with_data":
+            summary = data.get("value", {}).get("summary", {}).get("text", "")
+            if summary:
+                parts.append(summary)
+        elif event_type == "TEXT_MESSAGE_CONTENT":
+            delta = data.get("delta", "")
+            if delta.strip():
+                parts.append(delta)
+        elif event_type == "RUN_FINISHED":
             break
 
-    return "".join(parts)
+    return "\n\n".join(p for p in parts if p.strip())

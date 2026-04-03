@@ -169,17 +169,29 @@ class PEPClient:
         message: str,
     ) -> httpx.Response:
         """Send a message to a conversation. Returns raw response for SSE streaming."""
+        import uuid
+
         client = await self._client()
         headers = await self._headers()
         headers["Content-Type"] = "application/json"
         headers["Accept"] = "text/event-stream"
         return await client.post(
-            f"{API}/conversations/{conversation_id}/runs",
+            f"{API}/conversations/{conversation_id}/chat",
             headers=headers,
             json={
-                "thread_id": conversation_id,
-                "run_id": None,
-                "messages": [{"role": "user", "content": message}],
+                "threadId": conversation_id,
+                "runId": str(uuid.uuid4()),
+                "tools": [],
+                "context": [],
+                "forwardedProps": {},
+                "state": {},
+                "messages": [
+                    {
+                        "id": str(uuid.uuid4()),
+                        "role": "user",
+                        "content": message,
+                    }
+                ],
             },
             timeout=300,
         )
